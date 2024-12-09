@@ -1,0 +1,121 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+   previewFeatures = ["prismaSchemaFolder"]
+}
+
+model User {
+  id            String          @id @default(cuid())
+  name          String?
+  email         String          @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  role          UserRole        @default(USER) // Controle de acesso geral
+  ownedTenants  Tenant[]        @relation("OwnerTenants") // Tenants que este usuário possui
+  memberships   Membership[]    // Controle de associação individual a tenants
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model Account {
+  id                String      @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refreshToken      String?
+  accessToken       String?
+  expiresAt         Int?
+  tokenType         String?
+  scope             String?
+  idToken           String?
+  sessionState      String?
+
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String    @id @default(cuid())
+  sessionToken String    @unique
+  userId       String
+  expires      DateTime
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model VerificationToken {
+  id          String    @id @default(cuid())
+  identifier  String
+  token       String
+  expires     DateTime
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([identifier, token])
+}
+
+enum UserRole {
+  USER
+  SUPPORT // Funcionário do SaaS
+  ADMIN   // Administrador do SaaS
+}
+
+// --------------------------------------------------
+// Tenant
+// --------------------------------------------------
+
+
+model Tenant {
+  id          String       @id @default(cuid())
+  ownerId     String
+  slug        String       @unique // Identificador único do tenant
+  name        String
+  domains     Domain[]     // Domínios associados ao tenant
+  members     Membership[] // Usuários associados ao tenant
+  owner       User         @relation("OwnerTenants", fields: [ownerId], references: [id], onDelete: Cascade) // Propriedade do tenant
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Domain {
+  id        String     @id @default(cuid())
+  tenantId  String     // Referência ao tenant
+  domain    String     @unique // Domínio associado
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Membership {
+  id        String     @id @default(cuid())
+  userId    String
+  tenantId  String
+  role      TenantRole // Controle de permissões por tenant
+  isActive  Boolean    @default(true) // Status de ativação do membro no tenant
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([userId, tenantId]) // Cada usuário só pode ter uma associação por tenant
+}
+
+enum TenantRole {
+  OWNER    // Proprietário do Tenant
+  MANAGER  // Gerente com permissões avançadas
+  MEMBER   // Usuário comum do Tenant
+}
