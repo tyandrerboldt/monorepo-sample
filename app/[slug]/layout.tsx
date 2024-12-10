@@ -13,11 +13,6 @@ export default function TenantLayout({
   children: React.ReactNode;
   params: { slug: string };
 }) {
-  // const tenant = await getTenantFromSlug(params.slug);
-
-  // if (!tenant) {
-  //   notFound();
-  // }
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);

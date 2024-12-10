@@ -11,18 +11,49 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
   ],
+  session: { strategy: "jwt" },
   callbacks: {
-    async session({ session, user }) {
-      if (session.user) {
-        session.user.id = user.id;
-        
-        // Fetch user's role and add it to the session
-        const dbUser = await prisma.user.findUnique({
-          where: { id: user.id },
-          select: { role: true }
+    async signIn({ user, account, profile }) {
+      const email = user.email;
+      const existingUser = await prisma.user.findUnique({ where: { email } });
+  
+      if (existingUser && existingUser.provider !== account.provider) {
+        // Vincule a conta atual ao usuário existente
+        await prisma.account.create({
+          data: {
+            userId: existingUser.id,
+            provider: account.provider,
+            providerAccountId: account.providerAccountId,
+            type: "user"
+            // Outros dados necessários
+          },
         });
-        
-        session.user.role = dbUser?.role;
+      }
+
+      return true;
+    },
+    async jwt({ token }) {
+
+      const user = await prisma.user.findUnique({
+        where: {
+          id: token.sub
+        }
+      })
+
+      if (user) {
+        token.role = user.role
+      }
+
+      return token;
+    },
+
+    async session({ session, token }) {
+      if (token && session) {
+        session.user = {
+          ...session.user,
+          role: token.role,
+          id: token.sub || "" // Adiciona o Id do user a sessão
+        } as any
       }
       return session;
     },

@@ -15,7 +15,7 @@ export default function SignIn() {
         <CardContent>
           <Button
             className="w-full"
-            onClick={() => signIn("google", { callbackUrl: "/" })}
+            onClick={() => signIn("google", { callbackUrl: "/home" })}
           >
             Continue with Google
           </Button>
